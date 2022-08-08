@@ -1,0 +1,129 @@
+
+Code model 1
+//Parameters 
+%var:   beta 0.47      //Probability of infection following contact from infected
+%var:   alpha 0.2       // rate of progression from exposed to infectious, 1 in 5 days
+%var:   gamma 0.1429    //progression from infected to removed
+%var:   N 10000
+//Agent
+%agent: P(x{s e i r})   // see contact map
+// Rules
+'progression susceptible to exposed' P(x{s}),P(x{i})-> P(x{e}), P(x{i}) @ beta/N
+'progression exposed to '            P(x{e/i}) @ alpha
+'removal'                            P(x{i/r})@ gamma
+//Outputs
+%obs:   i |P(x{i})|
+%obs:   e |P(x{e})|
+%obs:   r |P(x{r})|
+%obs:   s |P(x{s})|
+//initiation size and population 
+
+%var:   init_i  50
+%var:   init_s  N - init_i
+%init:  init_i  P(x{i})
+%init:  init_s  P(x{s})
+
+Model 2
+//parameters description
+%var: alpha 0.2 // 1 in 5 days
+%var: beta 0.47
+%var: alpha_1 0.9*alpha          //rate of development of mild disease
+%var: alpha_2 0.1*alpha         //rate of development of severe infection
+%var: gamma_severe 0.042   //rate of recovery from severe infection
+%var: gamma_mild 1/7         //rate of recovery from mild disease
+%var: c 10                               // contact rate
+//Agent
+%agent: P(x{s e i r} c{y n})
+//Rules
+'infection' P(x{s}),P(x{i},c{n})-> P(x{e}), P(x{i},c{n}) @ c*beta/N // Progression to exposed with mild infection
+'infection2' P(x{s}),P(x{i},c{y})-> P(x{e}), P(x{i},c{y}) @ c*beta/N // progression to exposed with severe infection
+
+'prog_mild'     P(x{e},c{n}) -> P(x{i},c{n}) @ alpha_1 // straight to mild
+'prog_severe'   P(x{e},c{n}) -> P(x{i},c{y}) @ alpha_2 // straight to severe
+'removal_mild'   P(x{i},c{n}) -> P(x{r},c{n}) @ gamma_mild    // recover/dead after mild infection
+'removal_severe' P(x{i},c{y}) -> P(x{r},c{y}) @ gamma_severe //recover/dead after severe infection
+
+%obs: icn |P(x{i},c{n})| //output of individuals with mild infections
+
+%obs: rcn |P(x{r},c{n})| //output of individuals who recover from mild infection
+
+%obs: e |P(x{e})|
+%obs: r |P(x{r})|
+%obs: rcy |P(x{r},c{y})|
+%obs: icy |P(x{i},c{y})|
+%obs: s   |P(x{s})|
+//initiation size and population 
+%var: N  10000
+%var: init_i  50
+%var: init_s  N - init_i 
+%init: init_i P(x{i}, c{n})
+%init: init_s P(x{s}, c{n})
+
+Model 3
+%var: alpha 0.2              // 1 in 5 days
+%var: beta 0.47              //Probability of infection following contact from infected
+%var: alpha_1 0.9*alpha      // rate of development of mild disease
+%var: alpha_2 0.1*alpha      // rate  of development of severe infection
+%var: gamma_severe 0.042     //rate of recovery from severe infection, based on 3 week recovery from 
+%var: gamma_los 0.07         // length of stay in hospital, taking a median value of 14 days  
+%var: gamma_mild 1/7         //rate of recovery from mild disease
+%var: c 10                   //contact rates 
+%agent: P(x{s e i r } c{y n}, b) // seir population with severe states y/n and binding site b 
+%agent: B(h)                 //bed agent with biding site h
+// progression to exposed
+'infection' P(x{s}),P(x{i},c{n})-> P(x{e}), P(x{i},c{n}) @ c*beta/N
+'infection2' P(x{s}),P(x{i},c{y})-> P(x{e}), P(x{i},c{y}) @ c*beta/N
+// straight to mild
+'prog_mild'     P(x{e},c{n}) -> P(x{i},c{n}) @ alpha_1
+// straight to severe
+'prog_severe'   P(x{e},c{n}) -> P(x{i},c{y}) @ alpha_2
+'removal_mild'   P(x{i},c{n}) -> P(x{r},c{n}) @ gamma_mild    // gamma_mild  gamma_severe
+'removal_severe' P(x{i},c{y}) -> P(x{r},c{y}) @ gamma_severe
+//initiantion size and population 
+%var: N  10000
+%var: init_i  50
+%var: init_s  N - init_i 
+%init: init_i P(x{i}, c{n})
+%init: init_s P(x{s}, c{n})
+'rule for bed occupancy' P(x{i},c{y}, b[.]), B(h[.]) -> P(x{i},c{y}, b[1]), B(h[1]) @ alpha_2
+'rule for in bed recovered' P(x{r},c{y}, b[1]), B(h[1]) -> P(x{r},c{y}, b[.]), B(h[.]) @ gamma_los
+%obs: obeds |B(h[_])|         //occupied beds
+%init: 100 B()
+%obs: ubeds |B(h[.])|         // unoccupied beds
+%obs: propbeds |B(h[_])|/|B()|//proportion of beds occupied at a given time
+
+Code 4 
+%var: alpha 0.2              // 1 in 5 days
+%var: beta 0.37              //Probability of infection following contact from infected
+%var: delta 1/10         // Rate of recovery or death from severe disease 
+%var: gamma_los 0.14         // length of stay in hospital, taking a median value of 7 days  
+%var: gamma 1/7         //rate of recovery from mild disease
+%var: c 10                  //contact rates 
+%agent: P(x{s e i a r d},b)
+%agent: B(h)                 //bed agent with binding site h
+// progression to exposed
+'infection' P(x{s}),P(x{i})-> P(x{e}), P(x{i}) @ c*beta/N 
+'progression' P(x{e}) -> P(x{i}) @ alpha 
+'deteriorate' P(x{i}) -> P(x{a}) @ 0.02*gamma
+'recovery' P(x{i}) -> P(x{r}) @ 0.98*gamma
+'death' P(x{a}) -> P(x{d}) @ 0.25*delta
+'recovery_severe' P(x{a}) -> P(x{r}) @ 0.75*delta
+//initiation size and population 
+%var: N  10000
+%var: init_i  50
+%var: init_s  N - init_i 
+%init: init_i P(x{i},)
+%init: init_s P(x{s},)
+'rule for bed occupancy' P(x{a}, b[.]), B(h[.]) -> P(x{i}, b[1]), B(h[1]) @ 0.1*gamma
+'rule for in bed recovered' P(x{r}, b[1]), B(h[1]) -> P(x{r}, b[.]), B(h[.]) @ gamma_los
+%obs: obeds |B(h[_])|         //occupied beds
+%init: 25 B()
+%obs: ubeds |B(h[.])|         // unoccupied beds
+%obs: propbeds |B(h[_])|/|B()|//proportion of beds occupied at a given time
+%obs: s |P(x{s})|
+%obs: e |P(x{e})|
+%obs: i |P(x{i})|
+%obs: a |P(x{a})|
+%obs: r |P(x{r})|
+%obs: d |P(x{d})|
+
